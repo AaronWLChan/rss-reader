@@ -1,25 +1,30 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import { useEffect } from 'react';
+import Layout from './components/Layout'
+import { useAppSelector } from './redux/hooks';
 
 function App() {
+
+  const darkMode = useAppSelector((state) => state.ui.darkMode)
+
+  //Handle body styling
+  useEffect(() => {
+
+    if (darkMode) {
+      document.body.classList.remove('bg-gray-50')
+      document.body.classList.add('bg-darkbackground')
+    }
+
+    else {
+      document.body.classList.add('bg-gray-50')
+      document.body.classList.remove('bg-darkbackground')
+    }
+
+  }, [darkMode])
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+        <div className={darkMode ? "dark" : "light" }>
+          <Layout/>
+        </div>
   );
 }
 
