@@ -12,6 +12,7 @@ import RefreshButton from '../components/RefreshButton'
 import LoadingLayout from '../components/LoadingLayout'
 import ErrorLayout from '../components/ErrorLayout'
 
+
 export default function Index() {
     
     const feeds = useAppSelector((state) => state.feed.feed)
@@ -25,68 +26,95 @@ export default function Index() {
     const [offset, setOffset] = useState(20)
     const [count, setCount] = useState(0)
 
-
-    const getFeed = useCallback(() => {
-        let providers: FeedlyProvider[] = []
-
+    const hasProviders = useCallback(() => {
+        
         const len = feeds.length
 
-        for (let i = 0; i < len; i++){
-            providers.push(...feeds[i].feedProviders)
+        if (len === 0){
+            return false
         }
 
+        //As long as one has a provider should be g
+        for (let i = 0; i < len; i++){
+            if (feeds[i].feedProviders.length > 0) {
+                return true
+            }
+        }
 
-        providers = uniqBy(providers, 'feedId')
+        return false
 
-        let requests = providers.map((provider) => axios.get(provider.feedId.slice(5)).catch((e) => null))
+    }, [feeds])
 
-        axios.all(requests)
-            .then(axios.spread((...responses) => {
+    const getFeed = useCallback(() => {
 
-            if (responses && responses !== null) {
-                    //Compile response data
-                    let xmlObjects: string[] = []
+        if (hasProviders()) {
 
-                    for (let i = 0; i < responses.length; i++){
+            let providers: FeedlyProvider[] = []
 
-                        const response = responses[i]
+            const len = feeds.length
 
-                        if (response && response !== null && response.data){
-                        
-                            xmlObjects.push(response.data)
+            for (let i = 0; i < len; i++){
+                providers.push(...feeds[i].feedProviders)
+            }
+
+            providers = uniqBy(providers, 'feedId')
+
+            let requests = providers.map((provider) => axios.get(provider.feedId.slice(5)).catch((e) => null))
+
+            axios.all(requests)
+                .then(axios.spread((...responses) => {
+
+                if (responses && responses !== null) {
+                        //Compile response data
+                        let xmlObjects: string[] = []
+
+                        for (let i = 0; i < responses.length; i++){
+
+                            const response = responses[i]
+
+                            if (response && response !== null && response.data){
+                            
+                                xmlObjects.push(response.data)
+                            }
+                            
+
                         }
-                        
+
+                        //TODAY ONLY
+                        return parse2(xmlObjects, providers.map((provider) => provider.title), "today")
 
                     }
 
-                    //TODAY ONLY
-                    return parse2(xmlObjects, providers.map((provider) => provider.title), "today")
+                    else {
+                        throw new Error("Failed to retrieve any response from providers.")
+                    }
 
-                }
-
-                else {
-                    throw new Error("Failed to retrieve any response from providers.")
-                }
-
-           
-            }))
-            .then((result) => {
-            
-                //Master and visible list
-                setCount(result.length - 20)
-
-                setArticles(result);
-                setVisibleArticles(result.slice(0, 20)) 
+                }))
+                .then((result) => {
                 
-                setLoading(false)
-            
-            })
-            .catch((error) => {
-                setLoading(false)
-                setError(true)
-            })
+                    //Master and visible list
+                    setCount(result.length - 20)
 
-    }, [feeds])
+                    setArticles(result);
+                    setVisibleArticles(result.slice(0, 20)) 
+                    
+                    setLoading(false)
+                
+                })
+                .catch((error) => {
+                    setLoading(false)
+                    setError(true)
+                })
+        }
+
+    }, [feeds, hasProviders])
+
+    const refresh = useCallback(() => {
+        setError(false)
+        setLoading(true)
+
+        setTimeout(() => getFeed(), 2000)
+    }, [getFeed])
 
     const loadMore = useCallback(() => {
         setVisibleArticles([...visibleArticles, ...articles.slice(offset, offset + 20)])
@@ -132,85 +160,9 @@ export default function Index() {
 
     useEffect(() => {
         
-        if (feeds && feeds.length > 0) {
-            getFeed()
-        }
-
-        else {
-            setLoading(false)
-        }
+        getFeed()
 
     }, [feeds, getFeed])
-
-    const refresh = () => {
-        setError(false)
-        setLoading(true)
-
-        setTimeout(() => getFeed(), 2000)
-    }
-
-    const hasProviders = () => {
-        
-        const len = feeds.length
-
-        if (len === 0){
-            return false
-        }
-
-        //As long as one has a provider should be g
-        for (let i = 0; i < len; i++){
-            if (feeds[i].feedProviders.length > 0) {
-                return true
-            }
-        }
-
-        return false
-
-    }
-
-
-    const Body = () => {
-
-        if (!hasProviders()) {
-            return (
-                <div className="flex flex-col gap-4">
-                    <p className="secondary-text text-2xl">You are not following any providers!</p>
-                    <Link className="following-btn w-max" to="/discover">ADD PROVIDER</Link>
-                </div>
-            )
-        }
-
-        if (error) {
-            return (
-                <ErrorLayout onRetry={refresh}/>
-            )
-        }
-
-        if (loading) {
-            return (
-                <LoadingLayout/>
-            )
-        }
-
-        if (articles && articles.length > 0) {
-            return (
-                <>
-                    {visibleArticles.map((article, index) => readingMode === 'card' ? <ArticleCard key={index} article={article}/> 
-                        : <ArticleTitle key={index} article={article}/>)}
-
-                    {count > 0 && 
-                        <div ref={setLastElement} className="mb-24">
-                            <LoadingLayout/>
-                        </div>
-
-                    }
-            
-                </>
-            )
-        }
-
-        return <p className="secondary-text font-bold text-xl">No articles today!</p>
-    }
 
     return (
         <div>
@@ -229,7 +181,44 @@ export default function Index() {
 
             <hr className="divider"/>
 
-            <Body/>
+            {
+                !hasProviders() ? 
+                    <div className="flex flex-col gap-4">
+                        <p className="secondary-text text-2xl">You are not following any providers!</p>
+                        <Link className="following-btn w-max" to="/discover">ADD PROVIDER</Link>
+                     </div>
+
+                :
+
+                error ? 
+                    <ErrorLayout onRetry={refresh}/>
+
+                :
+
+                loading ?
+                    <LoadingLayout/>
+
+                :
+
+                (articles && articles.length > 0) ?
+                    <>
+                    {visibleArticles.map((article, index) => readingMode === 'card' ? <ArticleCard key={index} article={article}/> 
+                        : <ArticleTitle key={index} article={article}/>)}
+
+                    {count > 0 && 
+                        <div ref={setLastElement} className="mb-24">
+                            <LoadingLayout/>
+                        </div>
+
+                    }
+            
+                    </>
+
+                :
+
+                <p className="secondary-text font-bold text-xl">No articles today!</p>
+
+            }
         </div>
     )
 

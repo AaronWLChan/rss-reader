@@ -6,11 +6,11 @@ import { parse2 } from '../utility/parseXML'
 import ArticleCard from '../components/ArticleCard'
 import ArticleTitle from '../components/ArticleTitle'
 import FollowDropDownChild from '../components/FollowDropDownChild'
-import Loader from '../components/Loader'
 import { useAppSelector } from '../redux/hooks'
 import useOnClickOutside from '../hooks/useOnClickOutside'
 import { request } from '../api/feedly'
 import ErrorLayout from '../components/ErrorLayout'
+import LoadingLayout from '../components/LoadingLayout'
 
 interface FeedProviderDetailParams {
     id: string
@@ -139,12 +139,6 @@ export default function FeedProviderDetails() {
     useEffect(() => {
         getFeed()
     }, [id, getFeed])
-
-    const LoadingLayout = () => (
-        <div className="flex justify-center">
-            <Loader/>
-        </div>
-    )
 
     const [dropdownVisible, setDropdownVisible] = useState(false)
 

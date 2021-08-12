@@ -7,5 +7,8 @@
 * Dedicated backend to store user data rather than using Redux and LocalStorage
 * React Optimisations - in particular memoization
 
+## Note
+* During testing it was found some feeds from the Feedly API may not be accessible.
+
 ## Mobile / App Version
 * See the React Native version [here](http://www.github.com/AaronWLChan).

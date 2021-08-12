@@ -6,16 +6,16 @@ import ArticleCard from '../components/ArticleCard'
 import ArticleTitle from '../components/ArticleTitle'
 import { useAppSelector } from '../redux/hooks'
 import uniqBy from 'lodash/uniqBy'
-import { Link } from 'react-router-dom'
 import ReadingModeButton from '../components/ReadingModeButton'
+import { Link } from 'react-router-dom'
 import RefreshButton from '../components/RefreshButton'
 import LoadingLayout from '../components/LoadingLayout'
 import ErrorLayout from '../components/ErrorLayout'
 
+
 export default function AllFeed() {
     
     const feeds = useAppSelector((state) => state.feed.feed)
-
     const readingMode = useAppSelector((state) => state.feed.readingMode)
 
     const [articles, setArticles] = useState<Article[] | []>([])
@@ -25,93 +25,6 @@ export default function AllFeed() {
     const [loading, setLoading] = useState(true)
     const [offset, setOffset] = useState(20)
     const [count, setCount] = useState(0)
-
-    const getFeed = useCallback(() => {
-
-        //For each feed in feeds, get providers push all into list then run uniqby to filter the same providers, then map
-
-        let providers: FeedlyProvider[] = []
-
-        const len = feeds.length
-
-        for (let i = 0; i < len; i++){
-            providers.push(...feeds[i].feedProviders)
-        }
-
-        providers = uniqBy(providers, 'feedId')
-
-        let requests = providers.map((provider) => axios.get(provider.feedId.slice(5)).catch((e) => null))
-
-        axios.all(requests)
-            .then(axios.spread((...responses) => {
-
-                if (responses && responses !== null) {
-                    //Compile response data
-                    let xmlObjects: string[] = []
-
-                    for (let i = 0; i < responses.length; i++){
-
-                        const response = responses[i]
-
-                        if (response && response !== null && response.data){
-                        
-                            xmlObjects.push(response.data)
-                        }
-                        
-
-                    }
-
-                    //TODAY ONLY
-                    return parse2(xmlObjects, providers.map((provider) => provider.title), "today")
-
-                }
-
-                else {
-                    throw new Error("Failed to retrieve any response from providers.")
-                }
-
-            }))
-            .then((result) => {
-            
-                //Master and visible list
-                setCount(result.length - 20)
-
-                setArticles(result);
-                setVisibleArticles(result.slice(0, 20)) 
-                
-                setLoading(false)
-            
-            })
-            .catch((error) => {
-                setLoading(false)
-                setError(true)
-            })
-
-    }, [feeds])
-
-    const loadMore = useCallback(() => {
-        
-        if (count > 0) {
-            setVisibleArticles([...visibleArticles, ...articles.slice(offset, offset + 20)])
-            setCount(count - 20)
-            setOffset(offset + 20)
-        }
-    }, [count, articles, visibleArticles, offset])
-
-    //Loading
-    const loader = useRef(loadMore)
-
-    //UseRef to retrieve newest loadMore function
-    const observer = useRef(
-        new IntersectionObserver((entries) => {
-            
-            if (entries[0].isIntersecting){
-                loader.current();
-            }
-        }, { threshold: 1 })
-    )
-
-    const [lastElement, setLastElement] = useState<any>(null)
 
     const hasProviders = useCallback(() => {
         
@@ -131,6 +44,97 @@ export default function AllFeed() {
         return false
 
     }, [feeds])
+
+    const getFeed = useCallback(() => {
+
+        if (hasProviders()) {
+
+            let providers: FeedlyProvider[] = []
+
+            const len = feeds.length
+
+            for (let i = 0; i < len; i++){
+                providers.push(...feeds[i].feedProviders)
+            }
+
+            providers = uniqBy(providers, 'feedId')
+
+            let requests = providers.map((provider) => axios.get(provider.feedId.slice(5)).catch((e) => null))
+
+            axios.all(requests)
+                .then(axios.spread((...responses) => {
+
+                if (responses && responses !== null) {
+                        //Compile response data
+                        let xmlObjects: string[] = []
+
+                        for (let i = 0; i < responses.length; i++){
+
+                            const response = responses[i]
+
+                            if (response && response !== null && response.data){
+                            
+                                xmlObjects.push(response.data)
+                            }
+                            
+
+                        }
+
+                        return parse2(xmlObjects, providers.map((provider) => provider.title))
+
+                    }
+
+                    else {
+                        throw new Error("Failed to retrieve any response from providers.")
+                    }
+
+                }))
+                .then((result) => {
+                
+                    //Master and visible list
+                    setCount(result.length - 20)
+
+                    setArticles(result);
+                    setVisibleArticles(result.slice(0, 20)) 
+                    
+                    setLoading(false)
+                
+                })
+                .catch((error) => {
+                    setLoading(false)
+                    setError(true)
+                })
+        }
+
+    }, [feeds, hasProviders])
+
+    const refresh = useCallback(() => {
+        setError(false)
+        setLoading(true)
+
+        setTimeout(() => getFeed(), 2000)
+    }, [getFeed])
+
+    const loadMore = useCallback(() => {
+        setVisibleArticles([...visibleArticles, ...articles.slice(offset, offset + 20)])
+        setCount(count - 20)
+        setOffset(offset + 20)
+    }, [count, articles, visibleArticles, offset])
+
+    //Loading
+    const loader = useRef(loadMore)
+
+    //UseRef to retrieve newest loadMore function
+    const observer = useRef(
+        new IntersectionObserver((entries) => {
+            
+            if (entries[0].isIntersecting){
+                loader.current();
+            }
+        }, { threshold: 1 })
+    )
+
+    const [lastElement, setLastElement] = useState<any>(null)
 
     useEffect(() => {
         loader.current = loadMore
@@ -154,52 +158,49 @@ export default function AllFeed() {
     }, [lastElement])
 
     useEffect(() => {
-
-        if (hasProviders()) {
-            getFeed()
-        }
-
-        else {
-            setLoading(false)
-        }
         
-    }, [getFeed, hasProviders])
+        getFeed()
 
+    }, [feeds, getFeed])
 
-    const refresh = useCallback(() => {
-        setError(false)
-        setLoading(true)
+    return (
+        <div>
 
-        setTimeout(() => getFeed(), 2000)
-    }, [getFeed])
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="primary-text title">Today</h1>
 
+                <div className={hasProviders() ? "flex items-center gap-6" : "hidden"}>
+                    <RefreshButton onRefresh={refresh} loading={loading}/>
 
-    const Body = () => {
-
-        if (!hasProviders()) {
-            return (
-                <div className="flex flex-col gap-4">
-                    <p className="secondary-text text-2xl">You are not following any providers!</p>
-                    <Link className="following-btn w-max" to="/discover">ADD PROVIDER</Link>
+                    <ReadingModeButton/>
                 </div>
-            )
-        }
 
-        if (error) {
-            return (
-                <ErrorLayout onRetry={refresh}/>
-            )
-        }
 
-        if (loading) {
-            return (
-                <LoadingLayout/>
-            )
-        }
+            </div>
 
-        if (articles && articles.length > 0) {
-            return (
-                <>
+            <hr className="divider"/>
+
+            {
+                !hasProviders() ? 
+                    <div className="flex flex-col gap-4">
+                        <p className="secondary-text text-2xl">You are not following any providers!</p>
+                        <Link className="following-btn w-max" to="/discover">ADD PROVIDER</Link>
+                     </div>
+
+                :
+
+                error ? 
+                    <ErrorLayout onRetry={refresh}/>
+
+                :
+
+                loading ?
+                    <LoadingLayout/>
+
+                :
+
+                (articles && articles.length > 0) ?
+                    <>
                     {visibleArticles.map((article, index) => readingMode === 'card' ? <ArticleCard key={index} article={article}/> 
                         : <ArticleTitle key={index} article={article}/>)}
 
@@ -210,31 +211,14 @@ export default function AllFeed() {
 
                     }
             
-                </>
-            )
-        }
+                    </>
 
-        return <p className="secondary-text font-bold text-xl">No articles today!</p>
-    }
+                :
 
+                <p className="secondary-text font-bold text-xl">No articles today!</p>
 
-    return (
-        <div className="flex flex-col">
-
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="primary-text title">All</h1>
-
-                <div className={hasProviders() ? "flex items-center gap-6 " : "hidden"}>
-                    <RefreshButton onRefresh={refresh} loading={loading}/>
-
-                    <ReadingModeButton/>
-                </div>
-            </div>
-
-            <hr className="divider"/>
-
-            <Body/>
-
+            }
         </div>
     )
+
 }

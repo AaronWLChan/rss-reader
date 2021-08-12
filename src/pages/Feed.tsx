@@ -54,15 +54,30 @@ export default function Feed() {
             axios.all(requests)
                 .then(axios.spread((...responses) => {
 
-                    //Compile response data
-                    let xmlObjects: string[] = []
+                    if (responses && responses !== null) {
 
-                    for (let i = 0; i < responses.length; i++){
+                        //Compile response data
+                        let xmlObjects: string[] = []
+
+                        for (let i = 0; i < responses.length; i++){
+
+                            const response = responses[i]
+
+                            if (response && response !== null && response.data) {
+                                xmlObjects.push(response.data)
+                            }
+                            
                         
-                        xmlObjects.push(responses[i]!.data)
+                        }
+
+                        return parse2(xmlObjects, feed!.feedProviders.map((provider) => provider.title))
+
                     }
 
-                    return parse2(xmlObjects, feed!.feedProviders.map((provider) => provider.title))
+                    else {
+                        throw new Error("Failed to retrieve any response from providers.")
+                    }
+
                 }))
                 .then((result) => {
                 
@@ -92,6 +107,34 @@ export default function Feed() {
             setOffset(offset + 20)
         }
     }, [count, articles, visibleArticles, offset])
+
+    const refresh = useCallback(() => {
+        setError(false)
+        setLoading(true)
+
+        setTimeout(() => getFeed(), 2000)
+    }, [getFeed])
+
+
+    const container = useRef<HTMLDivElement>(null)
+    const [dropdownVisible, setDropdownVisible] = useState(false)
+
+    useOnClickOutside(container, dropdownVisible, () => setDropdownVisible(false))
+
+    const showManageFeed = () => {
+
+        if (feed) {
+            dispatch(showView({ viewName: "manage_feed", params: { id: feed.id } }))
+        }
+       
+    }
+
+    const showDeleteFeed = () => {
+
+        if (feed) {
+            dispatch(showView({ viewName: "delete_feed", params: { id: feed.id } } ))
+        }
+    }
 
     //Loading
     const loader = useRef(loadMore)
@@ -128,36 +171,6 @@ export default function Feed() {
 
 
     }, [lastElement])
-
-
-
-    const refresh = useCallback(() => {
-        setError(false)
-        setLoading(true)
-
-        setTimeout(() => getFeed(), 2000)
-    }, [getFeed])
-
-
-    const container = useRef<HTMLDivElement>(null)
-    const [dropdownVisible, setDropdownVisible] = useState(false)
-
-    useOnClickOutside(container, dropdownVisible, () => setDropdownVisible(false))
-
-    const showManageFeed = () => {
-
-        if (feed) {
-            dispatch(showView({ viewName: "manage_feed", params: { id: feed.id } }))
-        }
-       
-    }
-
-    const showDeleteFeed = () => {
-
-        if (feed) {
-            dispatch(showView({ viewName: "delete_feed", params: { id: feed.id } } ))
-        }
-    }
 
     useEffect(() => {
         getFeed()
