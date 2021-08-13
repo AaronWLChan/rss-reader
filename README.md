@@ -3,6 +3,8 @@
 * Uses Feedly API to find RSS feeds.
 * Dark Mode
 
+![](https://github.com/AaronWLChan/rss-reader/blob/main/images/today-dark.png)
+
 ## Possible Improvements
 * Dedicated backend to store user data rather than using Redux and LocalStorage
 * React Optimisations - in particular memoization
