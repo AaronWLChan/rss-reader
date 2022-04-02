@@ -13,4 +13,4 @@
 * During testing it was found some feeds from the Feedly API may not be accessible.
 
 ## Mobile / App Version
-* See the React Native version [here](http://www.github.com/AaronWLChan).
+* See the React Native version [here](https://github.com/AaronWLChan/react-native-rss-reader).
